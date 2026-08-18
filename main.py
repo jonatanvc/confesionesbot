@@ -333,11 +333,6 @@ def markup_confesiones():
     markup.add(InlineKeyboardButton("✍️ Hacer Confesión", callback_data="enviar_confesion"))
     markup.add(InlineKeyboardButton("📜 Mis Confesiones", callback_data="ver_confesiones"))
     markup.add(InlineKeyboardButton("📊 Mis Estadísticas", callback_data="mis_estadisticas"))
-    canal_str = str(CANAL_ID).strip()
-    if canal_str.startswith("@"):
-        markup.add(InlineKeyboardButton("📺 Unirse al Canal", url=f"https://t.me/{canal_str.lstrip('@')}"))
-    elif canal_str.startswith("http"):
-        markup.add(InlineKeyboardButton("📺 Unirse al Canal", url=canal_str))
     markup.add(InlineKeyboardButton("📋 Reglas del Bot", callback_data="ver_reglas"))
     markup.add(InlineKeyboardButton("❓ Ayuda/FAQ", callback_data="ayuda"))
     markup.add(InlineKeyboardButton("◀️ Volver al Menú", callback_data="volver_menu"))
