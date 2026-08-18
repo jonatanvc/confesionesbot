@@ -27,26 +27,34 @@ logger = logging.getLogger(__name__)
 def InlineKeyboardButton(text: str, *args, **kwargs):
     """
     Construye InlineKeyboardButton inyectando icon_custom_emoji_id cuando coincide
-    con el catálogo de Emojis Animados Premium de Telegram.
+    con el catálogo de Emojis Animados Premium de Telegram, y remueve el emoji unicode
+    del texto para evitar que aparezcan 2 emojis duplicados en el botón.
     """
     text_str = str(text).strip()
     icon_id = None
 
+    # 1. Buscar si comienza con algún emoji del catálogo
     for emoji_char, emoji_id in sorted(EMOJI_MAP.items(), key=lambda x: len(x[0]), reverse=True):
         if text_str.startswith(emoji_char):
             icon_id = emoji_id
+            text_str = text_str[len(emoji_char):].strip()
+            text_str = text_str.lstrip(" \ufe0f")
             break
 
+    # 2. Si no empieza con emoji, buscar si contiene un emoji en el texto
     if not icon_id:
         for emoji_char, emoji_id in sorted(EMOJI_MAP.items(), key=lambda x: len(x[0]), reverse=True):
             if emoji_char in text_str:
                 icon_id = emoji_id
+                text_str = text_str.replace(emoji_char, "").strip()
                 break
 
-    btn = _TelebotInlineKeyboardButton(text=text, *args, **kwargs)
     if icon_id:
+        btn = _TelebotInlineKeyboardButton(text=text_str if text_str else text, *args, **kwargs)
         btn.icon_custom_emoji_id = str(icon_id)
-    return btn
+        return btn
+    else:
+        return _TelebotInlineKeyboardButton(text=text, *args, **kwargs)
 
 def escape_html(text):
     if not text:
@@ -1355,32 +1363,29 @@ if __name__ == "__main__":
         logger.info(f"Bot iniciado: @{bot_info.username}")
         logger.info("🚀 Bot de confesiones activo")
 
-        error_count = 0
-        max_consecutive_errors = 5
+        telebot.apihelper.RETRY_ON_ERROR = True
 
         while True:
             try:
                 bot.infinity_polling(
                     skip_pending=True,
-                    timeout=30,
-                    long_polling_timeout=30,
-                    restart_on_change=False
+                    timeout=20,
+                    long_polling_timeout=20,
+                    restart_on_change=False,
+                    logger_level=logging.WARNING
                 )
             except KeyboardInterrupt:
                 print("\nBot detenido por usuario", flush=True)
                 sys.exit(0)
             except Exception as polling_error:
                 error_str = str(polling_error).lower()
-                error_count += 1
                 if "conflict" in error_str or "409" in error_str:
                     logger.error(f"Conflicto de polling detectado: {polling_error}")
                     sys.exit(1)
-                if error_count >= max_consecutive_errors:
-                    logger.warning(f"Reintentando conexión en 10s tras errores ({error_count})")
-                    error_count = 0
-                    time.sleep(10)
-                    continue
-                time.sleep(5)
+
+                logger.warning(f"Reconectando polling tras desconexion temporal: {polling_error}")
+                time.sleep(3)
+                continue
     except KeyboardInterrupt:
         print("\nBot detenido por usuario", flush=True)
         sys.exit(0)
