@@ -6,11 +6,11 @@ import time
 import sys
 import logging
 import json
-from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
+from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton as _TelebotInlineKeyboardButton
 from datetime import datetime
 from config import BOT_TOKEN, CANAL_ID, GRUPO_ADMIN_ID, CANAL_OBLIGATORIO, OWNER_ID
 from database import *
-from emojis import parse_emojis, p
+from emojis import EMOJI_MAP, parse_emojis, p
 
 if 'TERM' not in os.environ:
     os.environ['TERM'] = 'xterm'
@@ -23,6 +23,30 @@ logging.basicConfig(
     ]
 )
 logger = logging.getLogger(__name__)
+
+def InlineKeyboardButton(text: str, *args, **kwargs):
+    """
+    Construye InlineKeyboardButton inyectando icon_custom_emoji_id cuando coincide
+    con el catálogo de Emojis Animados Premium de Telegram.
+    """
+    text_str = str(text).strip()
+    icon_id = None
+
+    for emoji_char, emoji_id in sorted(EMOJI_MAP.items(), key=lambda x: len(x[0]), reverse=True):
+        if text_str.startswith(emoji_char):
+            icon_id = emoji_id
+            break
+
+    if not icon_id:
+        for emoji_char, emoji_id in sorted(EMOJI_MAP.items(), key=lambda x: len(x[0]), reverse=True):
+            if emoji_char in text_str:
+                icon_id = emoji_id
+                break
+
+    btn = _TelebotInlineKeyboardButton(text=text, *args, **kwargs)
+    if icon_id:
+        btn.icon_custom_emoji_id = str(icon_id)
+    return btn
 
 def escape_html(text):
     if not text:
@@ -300,7 +324,6 @@ def requerir_membresia(message):
 def markup_start(user_is_admin=False):
     markup = InlineKeyboardMarkup()
     markup.add(InlineKeyboardButton("📝 Confesiones", callback_data="menu_confesiones"))
-    markup.add(InlineKeyboardButton("👨‍💻 Sobre el Desarrollador", callback_data="sobre_desarrollador"))
     if user_is_admin:
         markup.add(InlineKeyboardButton("🛠️ Panel Admin", callback_data="panel_admin"))
     return markup
@@ -424,16 +447,6 @@ def show_menu_page(chat_id, page_id, user, call=None):
         )
         editar_mensaje_principal(chat_id, uid, text, reply_markup=markup_back())
 
-    elif page_id == 'sobre_desarrollador':
-        text = (
-            "👨‍💻 <b>Desarrollador</b>\n\n"
-            "🔹 <b>Autor:</b> Jonatan\n"
-            "🔹 <b>Tecnología:</b> Python, pyTelegramBotAPI, PostgreSQL, Docker\n\n"
-            "💬 <b>Contacto:</b> @jonatanvc\n\n"
-            "❤️ Gracias por usar el bot de confesiones."
-        )
-        editar_mensaje_principal(chat_id, uid, text, reply_markup=markup_back())
-
 @bot.message_handler(commands=["start"])
 @verificar_baneo_handler
 def cmd_start(message):
@@ -509,7 +522,7 @@ def menu_confesiones_callback(call):
     editar_mensaje_principal(call.message.chat.id, user_id, texto, reply_markup=markup_confesiones())
     safe_answer_callback(call.id, "📝 Panel de confesiones")
 
-@bot.callback_query_handler(func=lambda c: c.data in ("enviar_confesion", "ver_confesiones", "ayuda", "mis_estadisticas", "ver_reglas", "sobre_desarrollador"))
+@bot.callback_query_handler(func=lambda c: c.data in ("enviar_confesion", "ver_confesiones", "ayuda", "mis_estadisticas", "ver_reglas"))
 @verificar_baneo_handler
 def menu_callback(call):
     user_id = call.from_user.id
@@ -575,7 +588,7 @@ def volver_atras_callback(call):
         safe_answer_callback(call.id, "📝 Panel de confesiones")
         return
 
-    if page_id in ('enviar_confesion', 'ver_confesiones', 'mis_estadisticas', 'ayuda', 'ver_reglas', 'sobre_desarrollador'):
+    if page_id in ('enviar_confesion', 'ver_confesiones', 'mis_estadisticas', 'ayuda', 'ver_reglas'):
         show_menu_page(call.message.chat.id, page_id, call.from_user, call=call)
         safe_answer_callback(call.id)
         return
