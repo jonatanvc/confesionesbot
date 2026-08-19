@@ -196,7 +196,7 @@ def enviar_mensaje_baneo(chat_id, user_id):
         "💬 Si consideras que es un error, puedes usar el comando /appeal."
     )
     try:
-        bot.send_message(chat_id, p(mensaje), parse_mode="HTML")
+        editar_mensaje_principal(chat_id, user_id, mensaje)
     except Exception:
         pass
 
@@ -302,10 +302,14 @@ def is_admin(user_id):
     except Exception:
         return False
 
-def requerir_membresia(message):
-    user_id = message.from_user.id
+def requerir_membresia(message_or_call):
+    user = message_or_call.from_user
+    user_id = user.id
+    chat_id = message_or_call.chat.id if hasattr(message_or_call, 'chat') else (message_or_call.message.chat.id if hasattr(message_or_call, 'message') else user_id)
+
     if user_id == OWNER_ID or not CANAL_OBLIGATORIO:
         return True
+
     if not usuario_unido(user_id):
         markup = InlineKeyboardMarkup()
         canal_str = str(CANAL_OBLIGATORIO).strip()
@@ -320,10 +324,12 @@ def requerir_membresia(message):
 
         if canal_url:
             markup.add(InlineKeyboardButton("📢 Unirme al canal", url=canal_url))
+        markup.add(InlineKeyboardButton("🔄 Ya me uní (Verificar)", callback_data="verificar_suscripcion"))
+
         editar_mensaje_principal(
-            message.chat.id,
+            chat_id,
             user_id,
-            "🚫 <b>¡Necesitas unirte a nuestro canal!</b>\n\n📌 Presiona el botón para unirte y luego pulsa /start.",
+            "🚫 <b>¡Necesitas unirte a nuestro canal!</b>\n\n📌 Para poder interactuar con el bot debes estar suscrito al canal oficial.\n\nPresiona <b>Unirme al canal</b> y luego pulsa en <b>Ya me uní (Verificar)</b>.",
             reply_markup=markup
         )
         return False
@@ -331,7 +337,7 @@ def requerir_membresia(message):
 
 def markup_start(user_is_admin=False):
     markup = InlineKeyboardMarkup()
-    markup.add(InlineKeyboardButton("📝 Confesiones", callback_data="menu_confesiones"))
+    markup.add(InlineKeyboardButton("💬 Confesiones", callback_data="menu_confesiones"))
     if user_is_admin:
         markup.add(InlineKeyboardButton("🛠️ Panel Admin", callback_data="panel_admin"))
     return markup
@@ -390,7 +396,7 @@ def show_menu_page(chat_id, page_id, user, call=None):
 
         text = (
             "📖 Lee las reglas antes de confesar.\n\n"
-            "📝 Envía tu confesión (texto, foto o encuesta)\n\n"
+            "✍️ Envía tu confesión (texto, foto o encuesta)\n\n"
             "Te mostraremos una vista previa para confirmar."
         )
         editar_mensaje_principal(chat_id, uid, text, reply_markup=markup_back())
@@ -407,7 +413,7 @@ def show_menu_page(chat_id, page_id, user, call=None):
         for c in confesiones:
             safe_conf = escape_html(c['confesion'][:50] + "..." if len(c['confesion']) > 50 else c['confesion'])
             estado_emoji = {'pendiente': '⏳', 'aceptada': '✅', 'rechazada': '❌'}.get(c['estado'], '❓')
-            tipo_icon = '📝' if (c.get('tipo') or 'text') == 'text' else ('📷' if c.get('tipo') == 'photo' else ('📊' if c.get('tipo') == 'poll' else '📦'))
+            tipo_icon = '💬' if (c.get('tipo') or 'text') == 'text' else ('📷' if c.get('tipo') == 'photo' else ('📊' if c.get('tipo') == 'poll' else '📦'))
             texto += f"{estado_emoji} <b>No. {c['id']}</b> ({c['estado'].capitalize()}) {tipo_icon}\n🕒 {c['fecha']}\n💬 <i>{safe_conf}</i>\n\n"
 
         editar_mensaje_principal(chat_id, uid, texto, reply_markup=markup_back())
@@ -427,7 +433,7 @@ def show_menu_page(chat_id, page_id, user, call=None):
         editar_mensaje_principal(chat_id, uid, texto, reply_markup=markup_back())
 
     elif page_id == 'ayuda':
-        text = "❓ <b>Preguntas Frecuentes</b>\n\n📝 ¿Cómo envío una confesión?\nMenú → '✍️ Enviar' → Escribe → Confirma\n\n🔒 ¿Son anónimas?\nSí, se publican sin tu nombre ni usuario.\n\n⏱️ ¿Cuánto tarda la revisión?\nGeneralmente de 1 a 24 horas.\n\n❌ ¿Y si es rechazada?\nRecibirás el motivo específico del moderador."
+        text = "❓ <b>Preguntas Frecuentes</b>\n\n✍️ ¿Cómo envío una confesión?\nMenú → '✍️ Enviar' → Escribe → Confirma\n\n🔒 ¿Son anónimas?\nSí, se publican sin tu nombre ni usuario.\n\n⏱️ ¿Cuánto tarda la revisión?\nGeneralmente de 1 a 24 horas.\n\n❌ ¿Y si es rechazada?\nRecibirás el motivo específico del moderador."
         editar_mensaje_principal(chat_id, uid, text, reply_markup=markup_back())
 
     elif page_id == 'ver_reglas':
@@ -457,19 +463,53 @@ def cmd_start(message):
     registrar_usuario(user_id, message.from_user.username or "SinUsername")
     eliminar_notificacion_pendiente(user_id)
 
+    # Intentar borrar el mensaje /start del usuario para mantener el chat limpio
+    try:
+        bot.delete_message(message.chat.id, message.message_id)
+    except Exception:
+        pass
+
     if not requerir_membresia(message):
         return
 
     nombre = obtener_nombre_usuario(message.from_user)
     user_is_admin = is_admin(message.from_user.id)
 
-    msg = bot.send_message(
-        message.chat.id,
-        p(f"👋 ¡Hola, {nombre}!\n\n<b>📝 Confesiones Anónimas</b>\nEnvía confesiones al canal de forma 100% anónima.\n\n🚀 Usa los botones interactivos para comenzar."),
-        reply_markup=markup_start(user_is_admin),
-        parse_mode="HTML"
+    texto_bienvenida = (
+        f"👋 ¡Hola, {nombre}!\n\n"
+        "💭 <b>Confesiones Anónimas</b>\n"
+        "Envía confesiones al canal de forma 100% anónima.\n\n"
+        "🚀 Usa los botones interactivos para comenzar."
     )
-    set_main_message(user_id, msg.message_id)
+    editar_mensaje_principal(
+        message.chat.id,
+        user_id,
+        texto_bienvenida,
+        reply_markup=markup_start(user_is_admin)
+    )
+
+@bot.callback_query_handler(func=lambda c: c.data == "verificar_suscripcion")
+@verificar_baneo_handler
+def callback_verificar_suscripcion(call):
+    user_id = call.from_user.id
+    if usuario_unido(user_id):
+        safe_answer_callback(call.id, "✅ ¡Verificación exitosa! Bienvenido/a.")
+        user_is_admin = is_admin(user_id)
+        nombre = obtener_nombre_usuario(call.from_user)
+        texto_bienvenida = (
+            f"👋 ¡Hola, {nombre}!\n\n"
+            "💭 <b>Confesiones Anónimas</b>\n"
+            "Envía confesiones al canal de forma 100% anónima.\n\n"
+            "🚀 Usa los botones interactivos para comenzar."
+        )
+        editar_mensaje_principal(
+            call.message.chat.id,
+            user_id,
+            texto_bienvenida,
+            reply_markup=markup_start(user_is_admin)
+        )
+    else:
+        safe_answer_callback(call.id, "❌ Aún no te has unido al canal. Únete para continuar.", show_alert=True)
 
 @bot.callback_query_handler(func=lambda c: c.data == "panel_admin")
 def panel_admin_callback(call):
@@ -504,9 +544,7 @@ def menu_confesiones_callback(call):
     registrar_usuario(user_id, call.from_user.username or "SinUsername")
     eliminar_notificacion_pendiente(user_id)
 
-    fake_msg = call.message
-    fake_msg.from_user = call.from_user
-    if not requerir_membresia(fake_msg):
+    if not requerir_membresia(call):
         safe_answer_callback(call.id)
         return
 
@@ -514,7 +552,7 @@ def menu_confesiones_callback(call):
     push_page(call.from_user.id, 'menu_confesiones')
 
     texto = (
-        "📝 <b>Panel de Confesiones</b>\n\n"
+        "🗂️ <b>Panel de Confesiones</b>\n\n"
         "Selecciona una opción para gestionar tus confesiones:\n\n"
         "✍️ <b>Hacer Confesión:</b> Envía una nueva confesión anónima\n"
         "📜 <b>Mis Confesiones:</b> Revisa el estado de tus envíos\n"
@@ -523,7 +561,7 @@ def menu_confesiones_callback(call):
         "❓ <b>Ayuda:</b> Preguntas frecuentes"
     )
     editar_mensaje_principal(call.message.chat.id, user_id, texto, reply_markup=markup_confesiones())
-    safe_answer_callback(call.id, "📝 Panel de confesiones")
+    safe_answer_callback(call.id, "🗂️ Panel de confesiones")
 
 @bot.callback_query_handler(func=lambda c: c.data in ("enviar_confesion", "ver_confesiones", "ayuda", "mis_estadisticas", "ver_reglas"))
 @verificar_baneo_handler
@@ -532,9 +570,7 @@ def menu_callback(call):
     registrar_usuario(user_id, call.from_user.username or "SinUsername")
     eliminar_notificacion_pendiente(user_id)
 
-    fake_msg = call.message
-    fake_msg.from_user = call.from_user
-    if not requerir_membresia(fake_msg):
+    if not requerir_membresia(call):
         safe_answer_callback(call.id)
         return
 
@@ -580,7 +616,7 @@ def volver_atras_callback(call):
 
     if page_id == 'menu_confesiones':
         texto = (
-            "📝 <b>Panel de Confesiones</b>\n\n"
+            "🗂️ <b>Panel de Confesiones</b>\n\n"
             "Selecciona una opción para gestionar tus confesiones:\n\n"
             "✍️ <b>Hacer Confesión:</b> Envía una nueva confesión anónima\n"
             "📜 <b>Mis Confesiones:</b> Revisa el estado de tus envíos\n"
@@ -588,7 +624,7 @@ def volver_atras_callback(call):
             "📋 <b>Reglas:</b> Normas del bot"
         )
         editar_mensaje_principal(call.message.chat.id, call.from_user.id, texto, reply_markup=markup_confesiones())
-        safe_answer_callback(call.id, "📝 Panel de confesiones")
+        safe_answer_callback(call.id, "🗂️ Panel de confesiones")
         return
 
     if page_id in ('enviar_confesion', 'ver_confesiones', 'mis_estadisticas', 'ayuda', 'ver_reglas'):
@@ -605,6 +641,12 @@ def volver_atras_callback(call):
 def recibir_confesion(message):
     user_id = message.from_user.id
     eliminar_notificacion_pendiente(user_id)
+
+    # Intentar limpiar el texto del usuario para mantener el chat limpio
+    try:
+        bot.delete_message(message.chat.id, message.message_id)
+    except Exception:
+        pass
 
     if not requerir_membresia(message):
         return
@@ -653,6 +695,11 @@ def recibir_confesion_foto(message):
     user_id = message.from_user.id
     eliminar_notificacion_pendiente(user_id)
 
+    try:
+        bot.delete_message(message.chat.id, message.message_id)
+    except Exception:
+        pass
+
     if not requerir_membresia(message):
         return
 
@@ -698,6 +745,11 @@ def recibir_confesion_foto(message):
 def recibir_confesion_encuesta(message):
     user_id = message.from_user.id
     eliminar_notificacion_pendiente(user_id)
+
+    try:
+        bot.delete_message(message.chat.id, message.message_id)
+    except Exception:
+        pass
 
     if not requerir_membresia(message):
         return
@@ -1085,7 +1137,7 @@ def cmd_estadisticas(message):
         f"✅ Aceptadas: {stats['aceptadas']}\n"
         f"❌ Rechazadas: {stats['rechazadas']}\n\n"
         f"🗂️ Por tipo:\n"
-        f"📝 Texto: {tipos.get('text', 0)} | 📷 Foto: {tipos.get('photo', 0)} | 📊 Encuesta: {tipos.get('poll', 0)}\n\n"
+        f"💬 Texto: {tipos.get('text', 0)} | 📷 Foto: {tipos.get('photo', 0)} | 📊 Encuesta: {tipos.get('poll', 0)}\n\n"
         f"📈 Tasa de aceptación: {tasa}%\n"
         f"✅ <b>Estado:</b> Operativo"
     )
@@ -1324,7 +1376,14 @@ def volver_menu_callback(call):
     user_id = call.from_user.id
     user_page_stack[user_id] = []
     user_is_admin = is_admin(user_id)
-    editar_mensaje_principal(call.message.chat.id, user_id, "🏠 Menú principal", reply_markup=markup_start(user_is_admin))
+    nombre = obtener_nombre_usuario(call.from_user)
+    texto_bienvenida = (
+        f"👋 ¡Hola, {nombre}!\n\n"
+        "💭 <b>Confesiones Anónimas</b>\n"
+        "Envía confesiones al canal de forma 100% anónima.\n\n"
+        "🚀 Usa los botones interactivos para comenzar."
+    )
+    editar_mensaje_principal(call.message.chat.id, user_id, texto_bienvenida, reply_markup=markup_start(user_is_admin))
     safe_answer_callback(call.id, "🏠 Volviendo al menú")
 
 @bot.message_handler(func=lambda message: True)
@@ -1332,10 +1391,16 @@ def volver_menu_callback(call):
 def echo_all(message):
     user_id = message.from_user.id
     eliminar_notificacion_pendiente(user_id)
+
+    try:
+        bot.delete_message(message.chat.id, message.message_id)
+    except Exception:
+        pass
+
     editar_mensaje_principal(
         message.chat.id,
         user_id,
-        "👋 ¡Hola! Usa los botones del menú o pulsa /start para interactuar con el bot.",
+        "👋 ¡Hola! Usa los botones interactivos del menú para navegar.",
         reply_markup=markup_back()
     )
 
