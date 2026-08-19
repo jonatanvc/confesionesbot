@@ -108,8 +108,6 @@ EMOJI_MAP_CORE = {
     "1️⃣": "5440539497383087970",  # 1st Oro
     "2️⃣": "5447203607294265305",  # 2nd Plata
     "3️⃣": "5453902265922376865",  # 3rd Bronce
-    "4️⃣": "5280889245093871939",  # Bloque rojo Aiden 4
-    "5️⃣": "5280935824014199512",  # Flecha roja Aiden 5
 
     # --- Alertas y Notificaciones ---
     "🔔": "5242628160297641831",  # Campana dorada

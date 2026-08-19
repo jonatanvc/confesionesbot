@@ -440,19 +440,19 @@ def show_menu_page(chat_id, page_id, user, call=None):
         text = (
             "📋 <b>Reglas del Bot</b>\n\n"
             "<b>❌ PROHIBIDO:</b>\n"
-            "1️⃣ Ofender, insultar o hacer bullying\n"
-            "2️⃣ Publicar fotos privadas o números (Doxxing)\n"
-            "3️⃣ Publicidad, spam o enlaces no autorizados\n"
-            "4️⃣ Suplantación de identidad\n"
-            "5️⃣ Contenido sexual explícito o ilegal\n\n"
+            "• 🚫 <b>Ofender</b>, insultar o acosar\n"
+            "• 🔏 <b>Doxxing</b> (datos privados o números)\n"
+            "• 📢 <b>Spam</b>, publicidad o enlaces no autorizados\n"
+            "• 👤 <b>Suplantación</b> de identidad\n"
+            "• ⛔ <b>Contenido explícito</b> o ilegal\n\n"
             "<b>✅ PERMITIDO:</b>\n"
-            "1️⃣ Confesiones respetuosas\n"
-            "2️⃣ Compartir anécdotas y experiencias\n"
-            "3️⃣ Pedir consejos y desahogarse\n\n"
+            "• 💭 Confesiones y desahogos sinceros\n"
+            "• 💬 Compartir anécdotas y experiencias\n"
+            "• 💡 Pedir consejos respetuosos a la comunidad\n\n"
             "<b>🚨 Sistema de Advertencias:</b>\n"
-            "1ª ⚠️ Warning\n"
-            "2ª ⚠️ Último aviso\n"
-            "3ª 🚫 BAN DEFINITIVO"
+            "• ⚠️ <b>1ª Advertencia:</b> Aviso preventivo\n"
+            "• ⚠️ <b>2ª Advertencia:</b> Último aviso\n"
+            "• 🚫 <b>3ª Advertencia:</b> BAN DEFINITIVO"
         )
         editar_mensaje_principal(chat_id, uid, text, reply_markup=markup_back())
 
@@ -1426,6 +1426,17 @@ if __name__ == "__main__":
     try:
         bot_info = bot.get_me()
         logger.info(f"Bot iniciado: @{bot_info.username}")
+        
+        # Registrar comandos de BotFather automáticamente
+        try:
+            bot.set_my_commands([
+                types.BotCommand("start", "Iniciar el bot y abrir el menú"),
+                types.BotCommand("appeal", "Apelar una confesión o baneo")
+            ])
+            logger.info("Comandos registrados automáticamente en Telegram")
+        except Exception as e:
+            logger.warning(f"No se pudieron registrar comandos automáticos: {e}")
+
         logger.info("🚀 Bot de confesiones activo")
 
         telebot.apihelper.RETRY_ON_ERROR = True
