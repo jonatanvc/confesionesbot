@@ -345,7 +345,7 @@ def markup_start(user_is_admin=False):
 def markup_confesiones():
     markup = InlineKeyboardMarkup()
     markup.add(InlineKeyboardButton("✍️ Hacer Confesión", callback_data="enviar_confesion"))
-    markup.add(InlineKeyboardButton("📜 Mis Confesiones", callback_data="ver_confesiones"))
+    markup.add(InlineKeyboardButton("📂 Mis Confesiones", callback_data="ver_confesiones"))
     markup.add(InlineKeyboardButton("📊 Mis Estadísticas", callback_data="mis_estadisticas"))
     markup.add(InlineKeyboardButton("📋 Reglas del Bot", callback_data="ver_reglas"))
     markup.add(InlineKeyboardButton("❓ Ayuda/FAQ", callback_data="ayuda"))
@@ -409,7 +409,7 @@ def show_menu_page(chat_id, page_id, user, call=None):
             editar_mensaje_principal(chat_id, uid, texto, reply_markup=markup_back())
             return
 
-        texto = "📜 <b>Tus Confesiones</b>\n\n"
+        texto = "📂 <b>Tus Confesiones</b>\n\n"
         for c in confesiones:
             safe_conf = escape_html(c['confesion'][:50] + "..." if len(c['confesion']) > 50 else c['confesion'])
             estado_emoji = {'pendiente': '⏳', 'aceptada': '✅', 'rechazada': '❌'}.get(c['estado'], '❓')
@@ -555,7 +555,7 @@ def menu_confesiones_callback(call):
         "🗂️ <b>Panel de Confesiones</b>\n\n"
         "Selecciona una opción para gestionar tus confesiones:\n\n"
         "✍️ <b>Hacer Confesión:</b> Envía una nueva confesión anónima\n"
-        "📜 <b>Mis Confesiones:</b> Revisa el estado de tus envíos\n"
+        "📂 <b>Mis Confesiones:</b> Revisa el estado de tus envíos\n"
         "📊 <b>Estadísticas:</b> Mira tu actividad\n"
         "📋 <b>Reglas:</b> Normas del bot\n"
         "❓ <b>Ayuda:</b> Preguntas frecuentes"
@@ -619,7 +619,7 @@ def volver_atras_callback(call):
             "🗂️ <b>Panel de Confesiones</b>\n\n"
             "Selecciona una opción para gestionar tus confesiones:\n\n"
             "✍️ <b>Hacer Confesión:</b> Envía una nueva confesión anónima\n"
-            "📜 <b>Mis Confesiones:</b> Revisa el estado de tus envíos\n"
+            "📂 <b>Mis Confesiones:</b> Revisa el estado de tus envíos\n"
             "📊 <b>Estadísticas:</b> Mira tu actividad\n"
             "📋 <b>Reglas:</b> Normas del bot"
         )

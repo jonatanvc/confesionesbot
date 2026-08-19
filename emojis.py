@@ -24,7 +24,7 @@ EMOJI_MAP_CORE = {
     "📝": "5334882760735598374",  # Hoja y lapiz
     "✍️": "5334882760735598374",  # Mano escribiendo
     "✍": "5334882760735598374",
-    "📜": "5334882760735598374",  # Pergamino / Mis Confesiones animado
+    "📜": "5431721976769027887",  # Pergamino / Mis Confesiones animado
     "✏️": "5397782960512444700",  # Tag / Editar pin
     "✏": "5397782960512444700",
     "🏷️": "5397782960512444700",  # Tag version
